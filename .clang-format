@@ -1,0 +1,10 @@
+---
+BasedOnStyle: LLVM
+CompactNamespaces: 'true'
+DerivePointerAlignment: 'false'
+FixNamespaceComments: 'false'
+ReflowComments: 'true'
+SortIncludes: 'true'
+Standard: Cpp11
+BreakConstructorInitializers: BeforeComma
+...

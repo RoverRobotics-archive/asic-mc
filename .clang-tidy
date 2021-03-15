@@ -1,0 +1,30 @@
+---
+Checks:          '
+clang-diagnostic-*,
+clang-analyzer-*,
+cppcoreguidelines-*,
+-cppcoreguidelines-pro-bounds-constant-array-index,
+-cppcoreguidelines-pro-bounds-pointer-arithmetic,
+modernize-*,
+-modernize-use-trailing-return-type,
+bugprone-*,
+concurrency-*,
+-fuchsia-*,
+readability-identifier-naming'
+WarningsAsErrors: ''
+HeaderFilterRegex: ''
+AnalyzeTemporaryDtors: false
+FormatStyle:     none
+User:            dan
+CheckOptions:
+  - key:             llvm-else-after-return.WarnOnConditionVariables
+    value:           '0'
+  - key:             readability-identifier-naming.ConstantCase
+    value:           UPPER_CASE
+  - key:             readability-identifier-naming.ClassConstantCase
+    value:           UPPER_CASE
+  - key:             readability-identifier-naming.EnumCase
+    value:           CamelCase
+  - key:             readability-identifier-naming.ClassCase
+    value:           CamelCase
+...
