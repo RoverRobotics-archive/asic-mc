@@ -328,7 +328,7 @@ struct DataFrame {
 };
 
 class IMC099 {
-  static const auto DEFAULT_BAUD = 1000000;
+  static const auto DEFAULT_BAUD = 57600;
   static const auto MAX_PENDING = 4;
   static const auto MAX_LISTENERS = 8;
 

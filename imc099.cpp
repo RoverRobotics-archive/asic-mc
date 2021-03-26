@@ -1,10 +1,7 @@
 #include "imc099.h"
-#include "common_functions.h"
-#include <algorithm>
-#include <iterator>
 #include <mbed.h>
+#include <common_functions.h>
 #include <mstd_memory>
-
 #include <array>
 
 namespace iMotion {
@@ -19,7 +16,13 @@ auto checksum(Span<byte> rawdata) -> uint16_t {
 
 DataFrame::DataFrame(NodeAddress node_address, UartCommand command,
                      uint16_t dataword0, uint16_t dataword1)
-    : m_checksum(expected_checksum()) {}
+     {
+this->node_address = (uint8_t)node_address;
+this->command = (uint8_t)command;
+this->dataword0=dataword0;
+this->dataword1=dataword1;
+         this->m_checksum = expected_checksum();
+     }
 
 /// create from binary data
 DataFrame::DataFrame(Span<byte> sp) {
@@ -129,6 +132,10 @@ void IMC099::read_thread_fn() {
 IMC099::IMC099(PinName tx_pin, PinName rx_pin) : serial{tx_pin, rx_pin} {
   serial.set_baud(DEFAULT_BAUD);
   serial.set_blocking(true);
+  std::array<uint8_t,2> buf = {0x00,0x6C};
+  serial.write(buf.data(), buf.size());
+  volatile bool sr = serial.readable();
+  volatile bool sw = serial.writable();
   read_thread.start(callback(this, &IMC099::read_thread_fn));
   write_thread.start(callback(this, &IMC099::write_thread_fn));
 }
