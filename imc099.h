@@ -10,7 +10,7 @@ using byte = unsigned char;
 
 static const auto BYTES_PER_MESSAGE = 8;
 
-enum class NodeAddress {
+enum class NodeAddress : uint8_t {
   ALL_NODES_NO_RESPONSE = 0x00,
   ALL_NODES_WITH_RESPONSE = 0xFF,
 };
@@ -252,19 +252,23 @@ struct AnyRegister {
   AppId app_id;
   uint8_t register_id;
   AnyRegister(uint16_t dataword0)
-      : app_id{AppId(uint8_t(dataword0))},
-        register_id{uint8_t(dataword0 >> 8)} {};
+      : app_id{AppId(uint8_t(dataword0))}
+      , register_id{uint8_t(dataword0 >> 8)} {};
   AnyRegister(SystemControlRegister r)
-      : app_id(AppId::SYSTEM_CONTROL), register_id(uint8_t(r)){};
+      : app_id(AppId::SYSTEM_CONTROL)
+      , register_id(uint8_t(r)){};
   AnyRegister(MotorControlRegister r)
-      : app_id(AppId::MOTOR_CONTROL), register_id(uint8_t(r)){};
+      : app_id(AppId::MOTOR_CONTROL)
+      , register_id(uint8_t(r)){};
   AnyRegister(PFCControlRegister r)
-      : app_id(AppId::PFC), register_id(uint8_t(r)){};
+      : app_id(AppId::PFC)
+      , register_id(uint8_t(r)){};
   AnyRegister(ScriptRegister r)
-      : app_id(AppId::SCRIPT), register_id(uint8_t(r)){};
+      : app_id(AppId::SCRIPT)
+      , register_id(uint8_t(r)){};
 };
 
-enum class UartCommand {
+enum class Command {
   IS_REPLY_FLAG = 0x80,
 
   READ_STATUS = 0x00,
@@ -298,13 +302,13 @@ enum class ControlInputMode {
 };
 
 struct DataFrame {
-  byte node_address{};
-  byte command{};
+  NodeAddress node_address{};
+  Command command{};
   uint16_t dataword0{};
   uint16_t dataword1{};
   uint16_t m_checksum;
 
-  DataFrame(NodeAddress node_address, UartCommand command, uint16_t dataword0,
+  DataFrame(NodeAddress node_address, Command command, uint16_t dataword0,
             uint16_t dataword1);
 
   /// create from binary data
@@ -351,10 +355,11 @@ class IMC099 {
 public:
   IMC099(PinName tx_pin, PinName rx_pin);
 
-  /// Submit an event to be triggered for every received message
-  auto add_listener(Event<void(DataFrame)> &response_event) -> size_t;
+  /// Submit an event to be triggered for every received message. This will
+  /// create and retain a copy of the event object until it is removed.
+  auto add_listener(const Event<void(DataFrame)> &response_event) -> size_t;
 
-  /// Remove an event so that it is no longer triggered on new messages
+  /// Remove an event so that it is no longer triggered on new messages.
   void remove_listener(size_t index);
 
   /// write the dataframe to the device
