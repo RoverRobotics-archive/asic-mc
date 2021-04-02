@@ -41,6 +41,7 @@ private:
     // acceleration vector
     // gravity vector
     dev.setmode(OPERATION_MODE_NDOF);
+    debug("IMU software v%d.%d", dev.ID.sw[1], dev.ID.sw[0]);
     while (true) {
       // dev.get_accel();
       // dev.get_angles();
