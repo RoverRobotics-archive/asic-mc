@@ -64,7 +64,7 @@ public:
           last_imu.linearAcceleration.coords[1],
           last_imu.linearAcceleration.coords[2]);
     debug("quat (%f):\t%f\t%f i\t%f j\t%f k\n",
-          last_imu.angularOrientation.normsq(), last_imu.angularOrientation.re,
+          norm(last_imu.angularOrientation), last_imu.angularOrientation.re,
           last_imu.angularOrientation.im[0], last_imu.angularOrientation.im[1],
           last_imu.angularOrientation.im[2]);
 
