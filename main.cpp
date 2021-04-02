@@ -97,26 +97,12 @@ void mc_task() {
   };
 
   EventQueue q;
-  //   // this is one way to periodically request data:
-  // void request_imotion(iMotion::IMC099 *imc) {
-  //   auto req = iMotion::DataFrame::make_register_read(
-  //       iMotion::SystemControlRegister::CPU_LOAD);
-  //   imc->send(req);
-  // }
-  //   auto ev = q.event(&request_imotion, &imc099);
-  //   ev.period(2s);
-  //   ev.post();
-
   Event<void(iMotion::DataFrame)> message_received_event =
       q.event(message_received_callback);
 
   imc099.add_listener(message_received_event);
 
   while (true) {
-    // for (auto reg : registers) {
-    //   auto msg = iMotion::DataFrame::make_register_read(reg);
-    //   imc099.send(msg);
-    // }
     q.dispatch_for(100ms);
   }
 }
