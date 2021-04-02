@@ -1,0 +1,138 @@
+#include "Matrix.h"
+#include <Eigen/Dense>
+#include <array>
+#include <mbed.h>
+using T_Obs = int;
+using T_State = int;
+
+const int N_Obs = 4;
+const int N_State = 5;
+using namespace Eigen;
+Matrix3f A;
+
+// template <size_t N> class Vec {
+//   std::array<float, N> data;
+
+// public:
+//   Vec()
+//       : data{} {}
+
+//   float &operator[](std::size_t i) const { return data[i]; }
+//   float &operator[](std::size_t i) { return data[i]; }
+
+//   Vec<N> operator+(Vec<N> &that) {
+//     Vec<N> result;
+//     for (auto i = 0; i < N; ++i) {
+//       result[i] = (*this)[i] + (*that)[i];
+//     }
+//     return result;
+//   };
+
+//   float inner(Vec<N> &that) {
+//     float result = 0;
+
+//     for (auto i = 0; i < N; ++i) {
+//       result += (*this)[i] * that[i];
+//     };
+
+//     return result;
+//   };
+
+//   template <size_t M> Matrix<N, M> outer(Vec<M> &that) {
+//     Matrix<N, M> result;
+//     for (auto i = 0; i < N; ++i) {
+//       for (auto j = 0; j < M; ++j) {
+//         result[i][j] = this[i] * that[j];
+//       }
+//     }
+//     return result;
+//   };
+// };
+
+// template <size_t M, size_t N> class Matrix {
+//   std::array<std::array<float, M>, N> data;
+
+// public:
+//   float at(std::size_t i, std::size_t j) const { return data[i][j]; }
+//   float at(std::size_t i, std::size_t j) { return data[i][j]; }
+
+//   const size_t n_rows = M;
+//   const size_t num_cols = N;
+
+//   Vec<N> get_row(size_t i) {
+//     Vec<M> result;
+//     for (auto j = 0; j < N; ++j) {
+//       result[j] = data[i][j];
+//     }
+//     return result;
+//   }
+
+//   Vec<M> get_col(size_t j) {
+//     Vec<M> result;
+//     for (auto i = 0; i < M; ++i) {
+//       result[i] = data[i][j];
+//     }
+//     return result;
+//   }
+
+//   Matrix<M, N> operator+(Matrix<M, N> &that) const {
+//     Matrix<M, N> result;
+//     for (auto i = 0; i < M; ++i) {
+//       for (auto j = 0; j < N; ++j) {
+
+//         result.at(i, j) = (*this).at(i, j) + that.at(i, j);
+//       }
+//     }
+//     return result;
+//   };
+// };
+
+// template <size_t M, size_t N> Vec<M> solve(Matrix<M, N> a, Vec<N> b) {
+//   // solve ax = b with gaussian elimination
+// }
+
+// template <size_t N> Matrix<N, N> MatrixIdentity {
+//   auto result = Matrix<N, N>();
+//   for (auto i = 0; i < N, ++i) {
+//     result.at(i, i) = 1;
+//   }
+//   return result;
+// };
+class Kalman {
+  std::array<T_Obs, N_Obs> observables;
+  std::array<T_State, N_State> measurables;
+
+  // F
+  Eigen::Matrix<float, N_State, N_State> transition;
+  // H
+  Eigen::Matrix<float, N_State, N_Obs> observation;
+  // Q
+  Eigen::Matrix<float, N_State, N_State> process_noise;
+  // R
+  Eigen::Matrix<float, N_State, N_State> obs_noise;
+
+  // x
+  Eigen::Vector<float, N_Obs> state_estimate;
+  // P
+  Eigen::Matrix<float, N_State, N_State> state_estimate_covariance;
+  void step(std::array<float,N_Obs> new_data) {
+      auto F = transition;
+      auto H = observation;
+      auto Q = process_noise;
+      auto R = obs_noise;
+      auto x = state_estimate;
+      auto P = state_estimate_covariance;
+
+      auto new_x = F*x;
+      auto new_P = F*P*F.transpose() + Q;
+    
+  Eigen::Matrix<float,N_Obs,1>  z{new_data};
+      auto y = z - H*new_x;
+      auto S_k = H*new_P*H.transpose() + R;
+      auto x_kk = new_x + P*H.transpose()*S_k.partialPivLu().solve(y);
+      auto P_kk = ()
+      auto K = P * H.transpose *
+
+
+  }
+};

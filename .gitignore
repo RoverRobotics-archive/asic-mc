@@ -1,4 +1,6 @@
 
-BUILD/
-compile_commands.json
-.clangd/
+/BUILD
+/compile_commands.json
+/.mbed
+/BNO055
+/mbed-os

@@ -1,7 +1,7 @@
 #pragma once
 
+#include "broadcastqueue.h"
 #include <array>
-#include <cstdint>
 #include <mbed.h>
 
 namespace iMotion {
@@ -20,15 +20,6 @@ enum class AppId {
   MOTOR_CONTROL = 1,
   PFC = 3,
   SCRIPT = 4,
-};
-
-constexpr auto reg_sc(uint8_t index) -> uint16_t {
-  assert(index < 255);
-  return (uint16_t(AppId::SYSTEM_CONTROL) | (index << 8));
-};
-
-constexpr auto reg_mc(uint8_t index) -> uint16_t {
-  return (uint16_t(AppId::MOTOR_CONTROL) | (index << 8));
 };
 
 enum class SystemControlRegister : uint8_t {
@@ -266,6 +257,10 @@ struct AnyRegister {
   AnyRegister(ScriptRegister r)
       : app_id(AppId::SCRIPT)
       , register_id(uint8_t(r)){};
+
+  bool operator==(AnyRegister that) const {
+    return app_id == that.app_id && register_id == that.register_id;
+  };
 };
 
 enum class Command {
@@ -338,7 +333,7 @@ class IMC099 {
 
   BufferedSerial serial;
 
-  std::array<mstd::unique_ptr<Event<void(DataFrame)>>, MAX_LISTENERS> listeners;
+  BroadcastQueue<DataFrame> broadcastqueue;
   Mail<DataFrame, MAX_PENDING> frames_to_write;
   Thread write_thread{};
   Thread read_thread{};

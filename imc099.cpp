@@ -28,7 +28,7 @@ DataFrame::DataFrame(Span<byte> sp) {
   auto it = std::begin(sp);
   node_address = NodeAddress(*it);
   it++;
-  command = Command( *it);
+  command = Command(*it);
   it++;
   dataword0 = common_read_16_bit_inverse(it);
   it += 2;
@@ -60,13 +60,13 @@ auto DataFrame::make_change_control_input_mode(ControlInputMode new_mode)
 };
 
 auto DataFrame::make_motor_control(uint16_t target_speed) -> DataFrame {
-  return {NodeAddress::ALL_NODES_WITH_RESPONSE, Command::SET_TARGET_SPEED,
-          0x00, target_speed};
+  return {NodeAddress::ALL_NODES_WITH_RESPONSE, Command::SET_TARGET_SPEED, 0x00,
+          target_speed};
 };
 
 auto DataFrame::make_clear_fault(uint16_t target_speed) -> DataFrame {
-  return {NodeAddress::ALL_NODES_WITH_RESPONSE, Command::SET_TARGET_SPEED,
-          0x00, target_speed};
+  return {NodeAddress::ALL_NODES_WITH_RESPONSE, Command::SET_TARGET_SPEED, 0x00,
+          target_speed};
 };
 
 auto DataFrame::as_bytes() -> std::array<byte, BYTES_PER_MESSAGE> {
@@ -119,12 +119,7 @@ void IMC099::read_thread_fn() {
       flush_read();
       continue;
     }
-
-    for (auto &listener : listeners) {
-      if (listener) {
-        listener->post(df);
-      }
-    }
+    broadcastqueue.broadcast(df);
   }
 }
 
@@ -140,22 +135,16 @@ IMC099::IMC099(PinName tx_pin, PinName rx_pin)
   write_thread.start(callback(this, &IMC099::write_thread_fn));
 }
 
-auto IMC099::add_listener(const Event<void(DataFrame)> &response_event) -> size_t {
-  for (auto i = 0; i < MAX_LISTENERS; ++i) {
-    if (!listeners[i]) {
-      listeners[i] = mstd::make_unique<Event<void(DataFrame)>>(response_event);
-      return i;
-    }
-  }
-  return -1;
+auto IMC099::add_listener(const Event<void(DataFrame)> &response_event)
+    -> size_t {
+  return broadcastqueue.subscribe(response_event);
 }
 
 void IMC099::remove_listener(size_t index) {
-  MBED_ASSERT(index < MAX_LISTENERS);
-  listeners[index].reset();
+  return broadcastqueue.unsubscribe(index);
 }
 
-bool IMC099::send(DataFrame request)  {
+bool IMC099::send(DataFrame request) {
   auto msg_ptr = frames_to_write.try_alloc();
   if (!msg_ptr)
     return false;
