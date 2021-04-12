@@ -11,7 +11,6 @@ struct IMUFrame {
   Vec3 linearAcceleration;
 };
 
-const size_t NUM_IMU_LISTENERS = 10;
 class IMUManager {
   Thread thread;
   BNO055 dev;
