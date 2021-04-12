@@ -95,6 +95,7 @@ void mc_task() {
 int main() {
   std::array<Thread, 3> threads;
   DebugMonitor dbg;
+
   threads[0].start(mc_task);
   while (true) {
     ThisThread::sleep_for(100ms);
