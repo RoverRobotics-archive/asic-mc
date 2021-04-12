@@ -1,6 +1,7 @@
 #include "hardware.h"
 #include "EventQueue.h"
 #include "Span.h"
+#include "hardware.h"
 #include "imc099.h"
 #include <array>
 #include <mbed.h>
@@ -14,7 +15,6 @@ struct SpeedControllerState {
 const auto MOTOR_OVERRIDE_DURATION = 1s;
 const auto MOTOR_REPORT_PERIOD = 100ms;
 
-
 class SpeedController {
   EventQueue q;
 
@@ -26,7 +26,10 @@ class SpeedController {
 
   std::array<uint16_t, 4> motor_speeds;
 
-  SpeedController(): report_event(q.event(this, &SpeedController::report_status)), motor_override_timeout_event(q.event(this, &SpeedController::on_motor_override_timeout)) {
+  SpeedController()
+      : report_event(q.event(this, &SpeedController::report_status))
+      , motor_override_timeout_event(
+            q.event(this, &SpeedController::on_motor_override_timeout)) {
     report_event = q.event(this, &SpeedController::report_status);
     report_event.period(MOTOR_REPORT_PERIOD);
     report_event.post();
