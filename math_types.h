@@ -1,35 +1,32 @@
 #pragma once
 #include <array>
+#include <mbed.h>
 
-struct Vec3 {
-  std::array<float, 3> coords;
+template <size_t NDIM_> struct Vec {
+  static const size_t NDIM = NDIM_;
+  std::array<float, NDIM> coords;
 
-  Vec3 &operator+=(const Vec3 &other) {
-    coords[0] += other.coords[0];
-    coords[1] += other.coords[1];
-    coords[2] += other.coords[2];
+  Vec &operator+=(const Vec &other) {
+    for (size_t i = 0; i < NDIM; ++i)
+      coords[i] += other.coords[i];
     return *this;
   }
 
-  Vec3 &operator-=(const Vec3 &other) {
-    for (size_t i = 0; i < 3; ++i) {
+  Vec &operator-=(const Vec &other) {
+    for (size_t i = 0; i < NDIM; ++i)
       coords[i] -= other.coords[i];
-    }
-    coords[0] -= other.coords[0];
-    coords[1] -= other.coords[1];
-    coords[2] -= other.coords[2];
     return *this;
   }
 
-  Vec3 &operator*=(float other) {
-    for (size_t i = 0; i < 3; ++i) {
+  Vec &operator*=(float other) {
+    for (size_t i = 0; i < NDIM; ++i) {
       coords[i] *= other;
     }
     return *this;
   };
 
-  Vec3 &operator/=(float other) {
-    for (size_t i = 0; i < 3; ++i) {
+  Vec &operator/=(float other) {
+    for (size_t i = 0; i < NDIM; ++i) {
       coords[i] /= other;
     }
     return *this;
@@ -40,21 +37,111 @@ struct Vec3 {
   float operator[](size_t i) const { return coords[i]; };
 };
 
-inline float inner(const Vec3 &v0, const Vec3 &v1) {
+template <size_t NDIM>
+inline float inner(const Vec<NDIM> &v0, const Vec<NDIM> &v1) {
   float result = 0;
-  for (size_t i = 0; i < 3; ++i) {
+  for (size_t i = 0; i < NDIM; ++i) {
     result += v0[i] * v1[i];
   }
   return result;
 };
 
-inline float norm(const Vec3 &v) { return inner(v, v); };
-inline Vec3 operator-(const Vec3 &a) { return {-a[0], -a[1], -a[2]}; };
-inline Vec3 operator+(const Vec3 &a, const Vec3 &b) { return Vec3{a} += b; };
-inline Vec3 operator-(const Vec3 &a, const Vec3 &b) { return Vec3{a} -= b; };
-inline Vec3 operator*(const Vec3 &a, float r) { return Vec3{a} *= r; };
-inline Vec3 operator*(float r, const Vec3 &a) { return Vec3{a} *= r; };
-inline Vec3 operator/(const Vec3 &a, float r) { return Vec3{a} /= r; };
+template <size_t NDIM> inline float norm(const Vec<NDIM> &v) {
+  return inner(v, v);
+};
+template <size_t NDIM> inline Vec<NDIM> operator-(const Vec<NDIM> &a) {
+  return Vec<NDIM>{} -= a;
+};
+template <size_t NDIM>
+inline Vec<NDIM> operator+(const Vec<NDIM> &a, const Vec<NDIM> &b) {
+  return Vec<NDIM>{a} += b;
+};
+template <size_t NDIM>
+inline Vec<NDIM> operator-(const Vec<NDIM> &a, const Vec<NDIM> &b) {
+  return Vec<NDIM>{a} -= b;
+};
+template <size_t NDIM> inline Vec<NDIM> operator*(const Vec<NDIM> &a, float r) {
+  return Vec<NDIM>{a} *= r;
+};
+template <size_t NDIM> inline Vec<NDIM> operator*(float r, const Vec<NDIM> &a) {
+  return Vec<NDIM>{a} *= r;
+};
+template <size_t NDIM> inline Vec<NDIM> operator/(const Vec<NDIM> &a, float r) {
+  return Vec<NDIM>{a} /= r;
+};
+
+using Vec2 = Vec<2>;
+using Vec3 = Vec<3>;
+
+struct Complex;
+inline float norm(const Complex &q);
+
+struct Complex {
+  float real = 0;
+  float imag = 0;
+
+  Complex &operator+=(const Complex &other) {
+    real += other.real;
+    imag += other.imag;
+    return *this;
+  };
+  Complex &operator-=(const Complex &other) {
+    real -= other.real;
+    imag -= other.imag;
+    return *this;
+  };
+  Complex &operator*=(float other) {
+    real *= other;
+    imag *= other;
+    return *this;
+  }
+  Complex &operator/=(float other) {
+    real /= other;
+    imag /= other;
+    return *this;
+  }
+  Complex &operator*=(const Complex &other) {
+    *this = Complex{real * other.real - imag * other.imag,
+                    real * other.imag + imag * other.real};
+    return *this;
+  };
+  Complex &operator/=(const Complex &other) {
+    Complex result{*this};
+    result *= other;
+    result /= norm(other);
+    return (*this = result);
+  };
+};
+inline Complex operator-(const Complex &q) { return {-q.real, -q.imag}; };
+inline Complex operator+(const Complex &q0, const Complex &q1) {
+  return Complex{q0} += q1;
+}
+inline Complex operator-(const Complex &a, const Complex &b) {
+  return Complex{a} -= b;
+}
+inline Complex operator*(const Complex &q, float r) { return Complex{q} *= r; }
+inline Complex operator*(float r, const Complex &q) { return Complex{q} *= r; }
+inline Complex operator/(const Complex &q0, const Complex &q1) {
+  return Complex{q0} /= q1;
+}
+inline Complex operator/(const Complex &q0, float r) {
+  return Complex{q0} /= r;
+}
+inline Complex conj(const Complex &z) { return {z.real, -z.imag}; };
+inline float norm(const Complex &z) {
+  // Squared magnitude.
+  return z.real * z.real + z.imag * z.imag;
+};
+inline Vec2 transform(const Complex &z, const Vec2 &p) {
+  // this is motivated by geometric algebra.
+  // x -> (u + v xy)x(u - v xy) = (uu-vv)x - (2uv)y
+  // y -> (u + v xy)x(u - v xy) = (2uv)x + (uu-vv)y
+  auto a = z.real * z.real - z.imag * z.imag;
+  auto b = 2 * z.real * z.imag;
+  // you can think of it as (uu-vv) is the cosine and (2uv) is the sine
+  // this is the same as z*p*conj(z)
+  return Vec2{a * p[0] + b * p[1], a * p[1] - b * p[0]};
+};
 
 struct Quaternion;
 inline float norm(const Quaternion &q);
@@ -102,8 +189,6 @@ inline Quaternion conj(const Quaternion &q) { return {q.real, -q.imag}; };
 
 inline float norm(const Quaternion &q) {
   // Squared magnitude.
-  // If 1, this is a rotation.
-  // If zero, this is the zero quaternion.
   return q.real * q.real + inner(q.imag, q.imag);
 };
 
@@ -141,7 +226,7 @@ inline Quaternion operator/(const Quaternion &q0, const Quaternion &q1) {
 
 // Quaternions represent a real rotation and scaling in R3
 // If a unit quaternion (normsq=1), then it's just a rotation
-// If a real quaternion (imag={0,0,0}), thien it's just a scaling
+// If a real quaternion (imag={0,0,0}), then it's just a scaling
 inline Vec3 transform(const Quaternion &q, const Vec3 &v) {
   return (q * Quaternion{0, v} * conj(q)).imag;
 };
