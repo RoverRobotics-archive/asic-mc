@@ -8,60 +8,40 @@
 #include <mbed.h>
 #include <mstd_memory>
 
-class BNO08x {};
-
-namespace bno08x {
-const std::array<char, 2> prod_id{0xF9, 0};
-extern std::array<char, 100> rx_buffer;
-
-extern void on_dev_info(int);
-inline void get_dev_info(I2C *i2c) {
-  //   i2c->abort_transfer();
-  //   ThisThread::sleep_for(5ms);
-  //   bool did_fail =
-  //       i2c->transfer(0x4A << 1, prod_id.data(), prod_id.size(),
-  //       rx_buffer.data(),
-  //                     rx_buffer.size(), on_dev_info, I2C_EVENT_ALL);
-  //   MBED_ASSERT(!did_fail);
-  i2c->stop();
-  ThisThread::sleep_for(5ms);
-  i2c->stop();
-  int x = -1;
-  do {
-    x = i2c->write(0x4A << 1, prod_id.data(), prod_id.size(), true);
-
-    ThisThread::sleep_for(1ms);
-  } while (x == -2);
-  auto x2 = i2c->read(0x4A << 1, rx_buffer.data(), rx_buffer.size(), false);
-
-  uint16_t shtp_len = rx_buffer[0] | rx_buffer[1] << 8;
-  uint8_t shtp_channel = rx_buffer[2];
-  uint8_t shtp_seqnum = rx_buffer[3];
-  debug(" %d %d %s \n\n\n\n", x, x2, rx_buffer.data());
+extern "C" {
+struct sh2_Hal_s;
+typedef struct sh2_Hal_s sh2_Hal_t;
 };
+
+mstd::unique_ptr<struct sh2_Hal_s> make_sh2_hal_i2c(I2C *i2c);
+
+class SH2Imu {
+  Thread t;
+  mstd::unique_ptr<struct sh2_Hal_s> hal;
+
+  explicit SH2Imu(I2C *i2c){
+
+  };
 };
-// shtp protocol:
-/// b0 = length lsb
-/// 1: length msb
-/// 2 channel
-/// 3 seqnum
 
 struct IMUFrame {
   Quaternion angularOrientation;
   Vec3 linearAcceleration;
 };
 
+bool open_imu(I2C *i2c);
+
 class IMUManager {
   Thread thread;
-  I2C i2c;
   BroadcastQueue<IMUFrame> broadcastqueue;
+  SH2Imu imu;
 
 public:
-  IMUManager(PinName SDA, PinName SCL)
-      : i2c{SDA, SCL} {
+  IMUManager(I2C *i2c) {
+    open_imu(i2c);
+    imu = make_sh2_hal_i2c(&i2c);
     thread.start([this]() { thread_task(); });
   }
-
   size_t add_listener(const Event<void(IMUFrame)> &ev) {
     return broadcastqueue.subscribe(ev);
   }
@@ -70,8 +50,8 @@ public:
 private:
   void thread_task() {
     while (true) {
-      i2c.frequency(100000);
-      bno08x::get_dev_info(&i2c);
+      //   i2c.frequency(100000);
+      //   bno08x::get_dev_info(&i2c);
       ThisThread::sleep_for(1s);
     }
     // dev.reset();
