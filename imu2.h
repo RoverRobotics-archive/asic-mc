@@ -10,11 +10,7 @@ extern "C" {
 #include <mbed.h>
 #include <mstd_memory>
 
-inline void sh2_check(char const *file, int line, int result) {
-  if (result != 0) {
-    debug("sh2 call failed at %s, %d: %d", file, line, result);
-  }
-}
+void sh2_check(char const *file, int line, int result);
 
 #define SH2_CHECK(value) sh2_check(__FILE__, __LINE__, value)
 
@@ -40,15 +36,6 @@ public:
 
   bool is_running();
   void set_interface(I2C *i2c);
-
-  bool enableReport(sh2_SensorId_t sensorId, uint32_t interval_us) {
-    sh2_SensorConfig_t config = {};
-
-    config.reportInterval_us = interval_us;
-    SH2_CHECK(sh2_setSensorConfig(sensorId, &config));
-    return true;
-  };
-
   bool use_i2c(I2C *i2c);
   bool set_i2c(I2C *i2c);
   size_t add_listener(const Event<void(IMUFrame)> &ev) {
@@ -57,14 +44,8 @@ public:
   void remove_listener(size_t ix) { return broadcastqueue.unsubscribe(ix); };
 
 protected:
-  static void sensorcallback(void *cookie, sh2_SensorEvent_t *pEvent) { // todo
-    auto this_ = (IMUManager *)cookie;
-    debug("sensor callback");
-  }
-  static void eventcallback(void *cookie, sh2_AsyncEvent_t *pEvent0) { /*todo*/
-    auto this_ = (IMUManager *)cookie;
-    debug("event callback");
-  }
+  static void sensorcallback(void *cookie, sh2_SensorEvent_t *pEvent);
+  static void eventcallback(void *cookie, sh2_AsyncEvent_t *pEvent0);
 
   IMUManager();
 };
