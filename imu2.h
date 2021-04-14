@@ -2,27 +2,23 @@
 #include "ThisThread.h"
 #include "broadcastqueue.h"
 #include "math_types.h"
+extern "C" {
+#include "sh2.h"
+}
 #include <array>
-#include <assert.h>
 #include <cstdio>
 #include <mbed.h>
 #include <mstd_memory>
 
-extern "C" {
-struct sh2_Hal_s;
-typedef struct sh2_Hal_s sh2_Hal_t;
-};
+inline void sh2_check(char const *file, int line, int result) {
+  if (result != 0) {
+    debug("sh2 call failed at %s, %d: %d", file, line, result);
+  }
+}
 
-mstd::unique_ptr<struct sh2_Hal_s> make_sh2_hal_i2c(I2C *i2c);
+#define SH2_CHECK(value) sh2_check(__FILE__, __LINE__, value)
 
-class SH2Imu {
-  Thread t;
-  mstd::unique_ptr<struct sh2_Hal_s> hal;
-
-  explicit SH2Imu(I2C *i2c){
-
-  };
-};
+mstd::unique_ptr<sh2_Hal_t> make_sh2_hal(I2C *i2c);
 
 struct IMUFrame {
   Quaternion angularOrientation;
@@ -34,53 +30,41 @@ bool open_imu(I2C *i2c);
 class IMUManager {
   Thread thread;
   BroadcastQueue<IMUFrame> broadcastqueue;
-  SH2Imu imu;
+  std::unique_ptr<sh2_Hal_t> hal;
 
 public:
-  IMUManager(I2C *i2c) {
-    open_imu(i2c);
-    imu = make_sh2_hal_i2c(&i2c);
-    thread.start([this]() { thread_task(); });
-  }
+  static IMUManager *get() {
+    static IMUManager instance = {};
+    return &instance;
+  };
+
+  bool is_running();
+  void set_interface(I2C *i2c);
+
+  bool enableReport(sh2_SensorId_t sensorId, uint32_t interval_us) {
+    sh2_SensorConfig_t config = {};
+
+    config.reportInterval_us = interval_us;
+    SH2_CHECK(sh2_setSensorConfig(sensorId, &config));
+    return true;
+  };
+
+  bool use_i2c(I2C *i2c);
+  bool set_i2c(I2C *i2c);
   size_t add_listener(const Event<void(IMUFrame)> &ev) {
     return broadcastqueue.subscribe(ev);
   }
   void remove_listener(size_t ix) { return broadcastqueue.unsubscribe(ix); };
 
-private:
-  void thread_task() {
-    while (true) {
-      //   i2c.frequency(100000);
-      //   bno08x::get_dev_info(&i2c);
-      ThisThread::sleep_for(1s);
-    }
-    // dev.reset();
-    // while (!dev.check()) {
-    //   ThisThread::sleep_for(1ms);
-    // }
-
-    // // can get:
-    // // absolute orientation
-    // // angular velocity
-    // // acceleration vector
-    // // gravity vector
-    // dev.setmode(OPERATION_MODE_NDOF);
-    // debug("IMU software v%d.%d", dev.ID.sw[1], dev.ID.sw[0]);
-    // while (true) {
-    //   // dev.get_accel();
-    //   // dev.get_angles();
-    //   // dev.get_calib();
-    //   // dev.get_grv();
-    //   // dev.get_gyro();
-    //   dev.get_lia();
-    //   // dev.get_mag();
-    //   dev.get_quat();
-    //   // dev.get_temp();
-    //   IMUFrame fr;
-    //   fr.angularOrientation = {dev.quat.w,
-    //                            {dev.quat.x, dev.quat.y, dev.quat.z}};
-    //   fr.linearAcceleration = {dev.lia.x, dev.lia.y, dev.lia.z};
-    //   broadcastqueue.broadcast(fr);
-    // }
+protected:
+  static void sensorcallback(void *cookie, sh2_SensorEvent_t *pEvent) { // todo
+    auto this_ = (IMUManager *)cookie;
+    debug("sensor callback");
   }
+  static void eventcallback(void *cookie, sh2_AsyncEvent_t *pEvent0) { /*todo*/
+    auto this_ = (IMUManager *)cookie;
+    debug("event callback");
+  }
+
+  IMUManager();
 };
