@@ -45,6 +45,7 @@ public:
   };
 
   void emit_kinematics() {
+    return; // todo:
     iMotion::IMC099 &imc099 = MOTOR_BOARDS[0];
 
     debug("speed commanded / target:\n");
@@ -97,6 +98,7 @@ int main() {
   DebugMonitor dbg;
 
   auto imu = IMUManager::get();
+  i2c_imu.frequency(400000);
   imu->set_interface(&i2c_imu);
 
   threads[0].start(mc_task);
