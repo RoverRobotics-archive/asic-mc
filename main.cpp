@@ -96,6 +96,9 @@ int main() {
   std::array<Thread, 3> threads;
   DebugMonitor dbg;
 
+  auto imu = IMUManager::get();
+  imu->set_interface(&i2c_imu);
+
   threads[0].start(mc_task);
   while (true) {
     ThisThread::sleep_for(100ms);
