@@ -1,10 +1,40 @@
 #include "imc099.h"
 #include <array>
-#include <common_functions.h>
 #include <mbed.h>
-#include <mstd_memory>
 
 namespace iMotion {
+
+struct ByteStreamLE {
+  byte *iter;
+  ByteStreamLE(unsigned char *iter)
+      : iter(iter){};
+
+  uint8_t pop_u8() {
+    uint8_t result = *iter;
+    ++iter;
+    return result;
+  }
+
+  uint16_t pop_u16() {
+    uint16_t result = *iter;
+    ++iter;
+    result |= (*iter) << 8;
+    ++iter;
+    return result;
+  }
+
+  void push_u8(uint8_t x) {
+    *iter = x;
+    ++iter;
+  }
+
+  void push_u16(uint16_t x) {
+    *iter = (uint8_t)x;
+    ++iter;
+    *iter = (uint8_t)(x >> 8);
+    ++iter;
+  }
+};
 
 auto checksum(Span<byte> rawdata) -> uint16_t {
   uint16_t result = 0;
@@ -25,17 +55,12 @@ DataFrame::DataFrame(NodeAddress node_address, Command command,
 
 /// create from binary data
 DataFrame::DataFrame(Span<byte> sp) {
-  auto it = std::begin(sp);
-  node_address = NodeAddress(*it);
-  it++;
-  command = Command(*it);
-  it++;
-  dataword0 = common_read_16_bit_inverse(it);
-  it += 2;
-  dataword1 = common_read_16_bit_inverse(it);
-  it += 2;
-  m_checksum = common_read_16_bit_inverse(it);
-  it += 2;
+  ByteStreamLE stream(std::begin(sp));
+  node_address = NodeAddress(stream.pop_u8());
+  command = Command(stream.pop_u8());
+  dataword0 = stream.pop_u16();
+  dataword1 = stream.pop_u16();
+  m_checksum = stream.pop_u16();
 }
 
 auto DataFrame::make_register_read(AnyRegister any_register) -> DataFrame {
@@ -71,12 +96,12 @@ auto DataFrame::make_clear_fault(uint16_t target_speed) -> DataFrame {
 
 auto DataFrame::as_bytes() -> std::array<byte, BYTES_PER_MESSAGE> {
   std::array<byte, BYTES_PER_MESSAGE> result{};
-  auto it = std::begin(result);
-  *it++ = uint8_t(node_address);
-  *it++ = uint8_t(command);
-  it = common_write_16_bit_inverse(dataword0, it);
-  it = common_write_16_bit_inverse(dataword1, it);
-  it = common_write_16_bit_inverse(m_checksum, it);
+  ByteStreamLE stream(std::begin(result));
+  stream.push_u8((uint8_t)node_address);
+  stream.push_u8((uint8_t)command);
+  stream.push_u16(dataword0);
+  stream.push_u16(dataword1);
+  stream.push_u16(m_checksum);
   return result;
 }
 
