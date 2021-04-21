@@ -22,9 +22,16 @@ bool enableReport(sh2_SensorId_t sensorId, uint32_t interval_us);
 void sh2_imu_callback(void *cookie, sh2_SensorEvent_t *pEvent);
 
 void sh2_service_task() {
+
+  sh2_ProductIds_t p = {0};
+  // todo: Figure out why these next 3 lines are failing with -2
+  // (SH2_ERR_BAD_PARAM)
+  SH2_CHECK(sh2_getProdIds(&p));
+  enableReport(SH2_LINEAR_ACCELERATION, 10000);
+  enableReport(SH2_GYROSCOPE_CALIBRATED, 10000);
   while (true) {
     sh2_service();
-    ThisThread::sleep_for(10ms);
+    ThisThread::sleep_for(1ms);
   }
 };
 
@@ -36,7 +43,9 @@ bool enableReport(sh2_SensorId_t sensorId, uint32_t interval_us) {
   return true;
 };
 
-IMUManager::IMUManager() = default;
+IMUManager::IMUManager()
+    : thread{osPriorityNormal, OS_STACK_SIZE, nullptr, "IMU I2C Service"} {};
+
 void IMUManager::set_interface(I2C *i2c) {
   if (hal) {
     thread.terminate();
@@ -45,13 +54,8 @@ void IMUManager::set_interface(I2C *i2c) {
   hal = make_sh2_hal(i2c);
   SH2_CHECK(sh2_open(hal.get(), &IMUManager::eventcallback, (void *)this));
   SH2_CHECK(sh2_setSensorCallback(&IMUManager::sensorcallback, (void *)this));
+
   thread.start([this]() { sh2_service_task(); });
-  ThisThread::sleep_for(500ms);
-  sh2_ProductIds_t p = {0};
-  // todo: Figure out why these next 3 lines are failing with -2 (SH2_ERR_BAD_PARAM)
-  SH2_CHECK(sh2_getProdIds(&p));
-  enableReport(SH2_LINEAR_ACCELERATION, 500000);
-  enableReport(SH2_GYROSCOPE_CALIBRATED, 500000);
 };
 extern "C" {
 void IMUManager::sensorcallback(void *cookie,
@@ -86,37 +90,31 @@ void IMUManager::eventcallback(void *cookie,
 }
 }
 
-void thread_task() {
-  while (true) {
-    sh2_service();
-    ThisThread::sleep_for(10ms);
-  }
-  // dev.reset();
-  // while (!dev.check()) {
-  //   ThisThread::sleep_for(1ms);
-  // }
+// dev.reset();
+// while (!dev.check()) {
+//   ThisThread::sleep_for(1ms);
+// }
 
-  // // can get:
-  // // absolute orientation
-  // // angular velocity
-  // // acceleration vector
-  // // gravity vector
-  // dev.setmode(OPERATION_MODE_NDOF);
-  // debug("IMU software v%d.%d", dev.ID.sw[1], dev.ID.sw[0]);
-  // while (true) {
-  //   // dev.get_accel();
-  //   // dev.get_angles();
-  //   // dev.get_calib();
-  //   // dev.get_grv();
-  //   // dev.get_gyro();
-  //   dev.get_lia();
-  //   // dev.get_mag();
-  //   dev.get_quat();
-  //   // dev.get_temp();
-  //   IMUFrame fr;
-  //   fr.angularOrientation = {dev.quat.w,
-  //                            {dev.quat.x, dev.quat.y, dev.quat.z}};
-  //   fr.linearAcceleration = {dev.lia.x, dev.lia.y, dev.lia.z};
-  //   broadcastqueue.broadcast(fr);
-  // }
-}
+// // can get:
+// // absolute orientation
+// // angular velocity
+// // acceleration vector
+// // gravity vector
+// dev.setmode(OPERATION_MODE_NDOF);
+// debug("IMU software v%d.%d", dev.ID.sw[1], dev.ID.sw[0]);
+// while (true) {
+//   // dev.get_accel();
+//   // dev.get_angles();
+//   // dev.get_calib();
+//   // dev.get_grv();
+//   // dev.get_gyro();
+//   dev.get_lia();
+//   // dev.get_mag();
+//   dev.get_quat();
+//   // dev.get_temp();
+//   IMUFrame fr;
+//   fr.angularOrientation = {dev.quat.w,
+//                            {dev.quat.x, dev.quat.y, dev.quat.z}};
+//   fr.linearAcceleration = {dev.lia.x, dev.lia.y, dev.lia.z};
+//   broadcastqueue.broadcast(fr);
+// }

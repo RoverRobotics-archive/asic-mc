@@ -6,7 +6,6 @@ extern "C" {
 #include "sh2.h"
 }
 #include <array>
-#include <cstdio>
 #include <mbed.h>
 #include <mstd_memory>
 

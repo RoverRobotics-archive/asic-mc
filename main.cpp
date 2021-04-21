@@ -21,22 +21,22 @@ public:
     t.start([this]() { q.dispatch_forever(); });
   };
 
-  ~DebugMonitor() { MOTOR_BOARDS[0].remove_listener(mc_ev); };
+//   ~DebugMonitor() { MOTOR_BOARDS[0].remove_listener(mc_ev); };
 
-  void vel_listener(size_t i, iMotion::DataFrame df) {
-    switch (df.command) {
-    case iMotion::Command::REGISTER_READ_REPLY: {
-      iMotion::AnyRegister reg(df.dataword0);
-      if (reg ==
-          iMotion::AnyRegister(iMotion::MotorControlRegister::MOTOR_SPEED)) {
-        motor_speeds[i] = df.dataword0 / 16384.0f;
-        break;
-      }
-    }
-    default:
-      break;
-    }
-  };
+//   void vel_listener(size_t i, iMotion::DataFrame df) {
+//     switch (df.command) {
+//     case iMotion::Command::REGISTER_READ_REPLY: {
+//       iMotion::AnyRegister reg(df.dataword0);
+//       if (reg ==
+//           iMotion::AnyRegister(iMotion::MotorControlRegister::MOTOR_SPEED)) {
+//         motor_speeds[i] = df.dataword0 / 16384.0f;
+//         break;
+//       }
+//     }
+//     default:
+//       break;
+//     }
+//   };
 
   void poll_mc(iMotion::IMC099 *mc) {
     auto req = iMotion::DataFrame::make_register_read(
@@ -44,15 +44,15 @@ public:
     mc->send(req);
   };
 
-  void emit_kinematics() {
-    return; // todo:
-    iMotion::IMC099 &imc099 = MOTOR_BOARDS[0];
+//   void emit_kinematics() {
+//     return; // todo:
+//     iMotion::IMC099 &imc099 = MOTOR_BOARDS[0];
 
-    debug("speed commanded / target:\n");
-    debug("m0\t%f\n", motor_speeds[0]);
-    // debug("m1\t%f\n", motor_speeds[1]);
-    // debug("m2\t%f\n", motor_speeds[2]);
-    // debug("m3\t%f\n", motor_speeds[3]);
+//     debug("speed commanded / target:\n");
+//     debug("m0\t%f\n", motor_speeds[0]);
+//     // debug("m1\t%f\n", motor_speeds[1]);
+//     // debug("m2\t%f\n", motor_speeds[2]);
+//     // debug("m3\t%f\n", motor_speeds[3]);
 
     debug("\n\n");
   }
@@ -73,35 +73,35 @@ void message_received_callback(iMotion::DataFrame df) {
   }
 }
 
-void mc_task() {
-  iMotion::IMC099 &imc099 = MOTOR_BOARDS[0];
+// void mc_task() {
+//   iMotion::IMC099 &imc099 = MOTOR_BOARDS[0];
 
-  auto registers = {
-      iMotion::SystemControlRegister::CPU_LOAD,
-      iMotion::SystemControlRegister::CPU_LOAD_PEAK,
-      iMotion::SystemControlRegister::SW_VERSION,
-  };
+//   auto registers = {
+//       iMotion::SystemControlRegister::CPU_LOAD,
+//       iMotion::SystemControlRegister::CPU_LOAD_PEAK,
+//       iMotion::SystemControlRegister::SW_VERSION,
+//   };
 
-  EventQueue q;
-  Event<void(iMotion::DataFrame)> message_received_event =
-      q.event(message_received_callback);
+//   EventQueue q;
+//   Event<void(iMotion::DataFrame)> message_received_event =
+//       q.event(message_received_callback);
 
-  imc099.add_listener(message_received_event);
+//   imc099.add_listener(message_received_event);
 
-  while (true) {
-    q.dispatch_for(100ms);
-  }
-}
+//   while (true) {
+//     q.dispatch_for(100ms);
+//   }
+// }
 
 int main() {
   std::array<Thread, 3> threads;
-  DebugMonitor dbg;
+  //   DebugMonitor dbg;
 
   auto imu = IMUManager::get();
   i2c_imu.frequency(400000);
   imu->set_interface(&i2c_imu);
 
-  threads[0].start(mc_task);
+  //   threads[0].start(mc_task);
   while (true) {
     ThisThread::sleep_for(100ms);
   }

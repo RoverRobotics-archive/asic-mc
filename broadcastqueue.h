@@ -1,6 +1,8 @@
 #pragma once
 #include <array>
 #include <mbed.h>
+#include <mstd_memory>
+
 
 const size_t MAX_SUBSCRIBERS = 8;
 
