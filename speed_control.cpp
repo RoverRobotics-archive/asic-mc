@@ -6,6 +6,83 @@
 #include <array>
 #include <mbed.h>
 
+enum class ControlMode {
+  OPEN_LOOP,
+  CLOSED_LOOP,
+};
+const auto N_MOTORS = 4;
+
+enum class robot_motors : size_t {
+  FRONT_LEFT = 0,
+  FRONT_RIGHT = 1,
+  REAR_LEFT = 2,
+  REAR_RIGHT = 3,
+};
+
+struct robot_geometry {
+  float intra_axle_distance; // axle distance
+  float wheel_base;          // axle length
+  float wheel_radius;
+  float center_of_mass_x_offset;
+  float center_of_mass_y_offset;
+};
+
+const robot_geometry TERRAPIN_GEOMETRY{
+    1, 1, 1, 1, 1, // todo
+};
+
+const auto M_PI = 3.1415926535;
+
+const double MOTOR_RPM_PER_DUTY = 1; // todo
+const double RADIAN_PER_SECOND_PER_RPM = 60.0 / (2 * M_PI);
+
+// xyz = fwd, left, up
+
+Vec<4> ROBOT_METER_PER_SEC_PER_DUTY =
+    (TERRAPIN_GEOMETRY.wheel_radius * RADIAN_PER_SECOND_PER_RPM *
+     MOTOR_RPM_PER_DUTY) *
+    Vec<4>{1, 1, 1, 1} / 4;
+
+Vec<4> ROBOT_RADIAN_PER_SEC_PER_DUTY =
+    (TERRAPIN_GEOMETRY.wheel_base * TERRAPIN_GEOMETRY.wheel_radius *
+     RADIAN_PER_SECOND_PER_RPM * MOTOR_RPM_PER_DUTY) *
+    Vec<4>{-1, +1, -1, +1} / 4;
+
+struct Velocity {
+  double transverse;
+  double radial;
+};
+
+Vec<4> duties_from_velocity(Velocity v) {
+  return v.transverse * pseudoinverse(ROBOT_METER_PER_SEC_PER_DUTY) +
+         v.radial * pseudoinverse(ROBOT_RADIAN_PER_SEC_PER_DUTY);
+};
+
+Velocity velocity_from_duties(Vec<4> m) {
+  Velocity v;
+  v.transverse = inner(m, ROBOT_METER_PER_SEC_PER_DUTY);
+  v.radial = inner(m, ROBOT_RADIAN_PER_SEC_PER_DUTY);
+  return v;
+};
+
+float min_meters_per_radian;
+float max_motor_speed;
+
+float max_rotation_vel;
+float max_rotational_accel;
+
+float max_linear_accel;
+float max_linear_vel;
+
+struct SpeedControllerState {
+  std::array<float, N_MOTOR> d_vel_d_wheel;
+  std::array<float, N_MOTOR> d_rot_d_wheel;
+  float wheel_perp_friction;
+  float wheel_inline_friction;
+};
+
+struct SpeedDecayDelay {};
+
 // struct SpeedControllerState {
 //   std::array<int16_t, 4> target_speeds;
 //   std::array<int16_t, 4> actual_speeds;

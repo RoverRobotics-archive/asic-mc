@@ -1,10 +1,17 @@
 #pragma once
 #include <array>
+#include <initializer_list>
 #include <mbed.h>
 
 template <size_t NDIM_> struct Vec {
   static const size_t NDIM = NDIM_;
   std::array<float, NDIM> coords;
+
+  Vec() = default;
+
+  template <typename... T>
+  Vec(T... ts)
+      : coords{static_cast<float>(ts)...} {}
 
   Vec &operator+=(const Vec &other) {
     for (size_t i = 0; i < NDIM; ++i)
@@ -68,6 +75,10 @@ template <size_t NDIM> inline Vec<NDIM> operator*(float r, const Vec<NDIM> &a) {
 };
 template <size_t NDIM> inline Vec<NDIM> operator/(const Vec<NDIM> &a, float r) {
   return Vec<NDIM>{a} /= r;
+};
+template <size_t NDIM> inline Vec<NDIM> pseudoinverse(const Vec<NDIM> &a) {
+  auto n = norm(a);
+  return n ? Vec<NDIM>{a} /= norm(a) : Vec<NDIM>{};
 };
 
 using Vec2 = Vec<2>;
