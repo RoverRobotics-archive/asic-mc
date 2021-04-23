@@ -1,5 +1,6 @@
 #include "imu2.h"
 #include <mbed.h>
+
 extern "C" {
 #include "sh2_err.h"
 #include "sh2_hal.h"
@@ -14,19 +15,25 @@ struct sh2_Hal_i2c_t : public sh2_Hal_t {
 };
 
 const uint8_t ADDR = 0x4A << 1;
-const std::array<char, 5> softreset_pkt{5, 0, 1, 0, 1};
+// const std::array<char, 5> softreset_pkt{5, 0, 1, 0, 1};
+
+// todo: move this declaration elsewhere
+// DigitalOut rst_imu{PA_3};
 
 int sh2_i2c_open(sh2_Hal_t *self) {
   auto &mb = (static_cast<sh2_Hal_i2c_t &>(*self));
+  //   rst_imu.write(0);
+  ThisThread::sleep_for(1ms);
+  //   rst_imu.write(1);
+
   // Serial.println("I2C HAL open");
   // send a software reset
+  //   auto did_fail =
+  //       mb.i2c->write(ADDR, softreset_pkt.data(), softreset_pkt.size());
 
-  auto did_fail =
-      mb.i2c->write(ADDR, softreset_pkt.data(), softreset_pkt.size());
-
-  if (did_fail != 0) {
-    return -1;
-  }
+  //   if (did_fail != 0) {
+  //     return -1;
+  //   }
   return 0;
 };
 

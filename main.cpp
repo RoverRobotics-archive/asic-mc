@@ -3,7 +3,6 @@
 #include "imc099.h"
 #include "math_types.h"
 #include <array>
-#include <cstdint>
 #include <mbed.h>
 
 class DebugMonitor {
@@ -94,12 +93,13 @@ void message_received_callback(iMotion::DataFrame df) {
 // }
 
 int main() {
-  std::array<Thread, 3> threads;
+  //   std::array<Thread, 3> threads;
   //   DebugMonitor dbg;
-
-  auto imu = IMUManager::get();
+  debug("starting up...\n");
   i2c_imu.frequency(400000);
-  imu->set_interface(&i2c_imu);
+
+  IMUManager imu;
+  imu.set_interface(&i2c_imu);
 
   //   threads[0].start(mc_task);
   while (true) {
