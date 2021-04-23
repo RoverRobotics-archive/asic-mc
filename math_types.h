@@ -1,7 +1,7 @@
 #pragma once
 #include <array>
 #include <mbed.h>
-
+namespace math {
 template <size_t NDIM_> struct Vec {
   static const size_t NDIM = NDIM_;
   std::array<float, NDIM> coords;
@@ -230,3 +230,4 @@ inline Quaternion operator/(const Quaternion &q0, const Quaternion &q1) {
 inline Vec3 transform(const Quaternion &q, const Vec3 &v) {
   return (q * Quaternion{0, v} * conj(q)).imag;
 };
+}

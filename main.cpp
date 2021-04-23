@@ -1,9 +1,15 @@
+#include "BNO080.h"
 #include "EventQueue.h"
+#include "LowPowerTicker.h"
+#include "PinNames.h"
+#include "SerialStream.h"
+#include "ThisThread.h"
 #include "hardware.h"
 #include "imc099.h"
 #include "math_types.h"
 #include <array>
 #include <mbed.h>
+#include <stdio.h>
 
 class DebugMonitor {
   std::array<float, 4> motor_speeds;
@@ -92,17 +98,42 @@ void message_received_callback(iMotion::DataFrame df) {
 //   }
 // }
 
+BufferedSerial serial(USBTX, USBRX, 9600);
+SerialStream<BufferedSerial> pc(serial);
+BNO080I2C imu{&pc, PB_9, PB_8, D13, D12};
+
+Thread imu_thread;
+
+void imu_task() {
+  while (true) {
+    while (!imu.begin()) {
+      ThisThread::sleep_for(100ms);
+    };
+    imu.enableReport(BNO080Base::LINEAR_ACCELERATION, 200);
+    imu.enableReport(BNO080Base::GAME_ROTATION, 100);
+
+    while (true) {
+      imu.updateData();
+      ThisThread::sleep_for(1ms);
+    }
+  }
+}
+
 int main() {
   //   std::array<Thread, 3> threads;
   //   DebugMonitor dbg;
   debug("starting up...\n");
-  i2c_imu.frequency(400000);
-
-  IMUManager imu;
-  imu.set_interface(&i2c_imu);
-
-  //   threads[0].start(mc_task);
+  imu_thread.start(imu_task);
   while (true) {
-    ThisThread::sleep_for(100ms);
+    if (imu.hasNewData(BNO080Base::LINEAR_ACCELERATION)) {
+      auto acc = imu.linearAcceleration;
+      debug("%f %f %f\n", acc.element(0, 0), acc.element(0, 1),
+            acc.element(0, 2));
+    }
+    if (imu.hasNewData(BNO080Base::GAME_ROTATION)) {
+      auto rot = imu.gameRotationVector;
+      debug("%f\n", rot.real());
+    }
+    ThisThread::sleep_for(1s);
   }
 };
