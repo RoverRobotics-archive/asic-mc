@@ -1,6 +1,7 @@
 #include "imu2.h"
 extern "C" {
 #include "sh2.h"
+#include "sh2_SensorValue.h"
 #include "sh2_err.h"
 }
 #include <array>
@@ -29,6 +30,8 @@ void sh2_service_task() {
   SH2_CHECK(sh2_getProdIds(&p));
   enableReport(SH2_LINEAR_ACCELERATION, 10000);
   enableReport(SH2_GYROSCOPE_CALIBRATED, 10000);
+  enableReport(SH2_GAME_ROTATION_VECTOR, 10000);
+
   while (true) {
     sh2_service();
     ThisThread::sleep_for(1ms);
@@ -51,9 +54,13 @@ void IMUManager::set_interface(I2C *i2c) {
     thread.terminate();
     sh2_close();
   }
+  ThisThread::sleep_for(200ms);
   hal = make_sh2_hal(i2c);
-  SH2_CHECK(sh2_open(hal.get(), &IMUManager::eventcallback, (void *)this));
+  debug("opened. Setting sensor callback...\n");
   SH2_CHECK(sh2_setSensorCallback(&IMUManager::sensorcallback, (void *)this));
+  debug("opening imu connection...\n");
+
+  SH2_CHECK(sh2_open(hal.get(), &IMUManager::eventcallback, (void *)this));
 
   thread.start([this]() { sh2_service_task(); });
 };
@@ -61,6 +68,26 @@ extern "C" {
 void IMUManager::sensorcallback(void *cookie,
                                 sh2_SensorEvent_t *pEvent) { // todo
   auto this_ = (IMUManager *)cookie;
+  sh2_SensorValue_t value{};
+  SH2_CHECK(sh2_decodeSensorEvent(&value, pEvent));
+
+  switch (value.sensorId) {
+  case SH2_GYROSCOPE_CALIBRATED: {
+    auto d = value.un.gyroscope;
+    debug("GYR: %f %f %f\n", d.x, d.y, d.z);
+    break;
+  }
+  case SH2_LINEAR_ACCELERATION: {
+    auto d = value.un.linearAcceleration;
+    debug("LIN ACC: %f %f %f\n", d.x, d.y, d.z);
+    break;
+  }
+  case SH2_GAME_ROTATION_VECTOR: {
+    auto d = value.un.gameRotationVector;
+    debug("GAME ROT: %f %f %f %f\n", d.real, d.i, d.j, d.k);
+    break;
+  }
+  }
   debug("sensor callback: %d\n", pEvent->reportId);
 }
 void IMUManager::eventcallback(void *cookie,

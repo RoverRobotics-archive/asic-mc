@@ -7,7 +7,6 @@ extern "C" {
 }
 #include <array>
 #include <mbed.h>
-#include <mstd_memory>
 
 void sh2_check(char const *file, int line, int result);
 
@@ -27,16 +26,13 @@ class IMUManager {
   BroadcastQueue<IMUFrame> broadcastqueue;
   std::unique_ptr<sh2_Hal_t> hal;
 
+  static IMUManager singleton;
+
 public:
-  static IMUManager *get() {
-    static IMUManager instance = {};
-    return &instance;
-  };
+  IMUManager();
 
   bool is_running();
   void set_interface(I2C *i2c);
-  bool use_i2c(I2C *i2c);
-  bool set_i2c(I2C *i2c);
   size_t add_listener(const Event<void(IMUFrame)> &ev) {
     return broadcastqueue.subscribe(ev);
   }
@@ -45,6 +41,4 @@ public:
 protected:
   static void sensorcallback(void *cookie, sh2_SensorEvent_t *pEvent);
   static void eventcallback(void *cookie, sh2_AsyncEvent_t *pEvent0);
-
-  IMUManager();
 };
