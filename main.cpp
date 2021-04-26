@@ -1,8 +1,6 @@
-#include "BNO055.h"
 #include "EventQueue.h"
 #include "hardware.h"
 #include "imc099.h"
-#include "imu.h"
 #include "math_types.h"
 #include <array>
 #include <cstdint>
@@ -10,7 +8,6 @@
 
 class DebugMonitor {
   std::array<float, 4> motor_speeds;
-  IMUFrame last_imu;
   size_t mc_ev = -1;
   Thread t;
   EventQueue q;
@@ -22,7 +19,6 @@ public:
     q.call_every(1s, this, &DebugMonitor::poll_mc, &MOTOR_BOARDS[0]);
     q.call_every(1s, this, &DebugMonitor::emit_kinematics);
     t.start([this]() { q.dispatch_forever(); });
-    IMU.add_listener(q.event(this, &DebugMonitor::on_imu_data));
   };
 
   ~DebugMonitor() { MOTOR_BOARDS[0].remove_listener(mc_ev); };
@@ -42,8 +38,6 @@ public:
     }
   };
 
-  void on_imu_data(IMUFrame f) { last_imu = f; };
-
   void poll_mc(iMotion::IMC099 *mc) {
     auto req = iMotion::DataFrame::make_register_read(
         iMotion::MotorControlRegister::MOTOR_SPEED);
@@ -58,15 +52,6 @@ public:
     // debug("m1\t%f\n", motor_speeds[1]);
     // debug("m2\t%f\n", motor_speeds[2]);
     // debug("m3\t%f\n", motor_speeds[3]);
-
-    debug("IMU motion:\n");
-    debug("accel:\t%f,\t%f,\t%f\n", last_imu.linearAcceleration.coords[0],
-          last_imu.linearAcceleration.coords[1],
-          last_imu.linearAcceleration.coords[2]);
-    debug("quat (%f):\t%f\t%f i\t%f j\t%f k\n",
-          norm(last_imu.angularOrientation), last_imu.angularOrientation.re,
-          last_imu.angularOrientation.im[0], last_imu.angularOrientation.im[1],
-          last_imu.angularOrientation.im[2]);
 
     debug("\n\n");
   }

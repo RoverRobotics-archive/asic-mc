@@ -1,9 +1,7 @@
 #include "hardware.h"
-#include "BNO055.h"
 #include "EventQueue.h"
 #include "Span.h"
 #include "imc099.h"
-#include "imu.h"
 #include <array>
 #include <mbed.h>
 
