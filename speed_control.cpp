@@ -36,14 +36,12 @@ const auto M_PI = 3.1415926535;
 const double MOTOR_RPM_PER_DUTY = 1; // todo
 const double RADIAN_PER_SECOND_PER_RPM = 60.0 / (2 * M_PI);
 
-// xyz = fwd, left, up
-
-Vec<4> ROBOT_METER_PER_SEC_PER_DUTY =
+Vec<4> TRANSVERSE_METER_PER_SEC_PER_DUTY =
     (TERRAPIN_GEOMETRY.wheel_radius * RADIAN_PER_SECOND_PER_RPM *
      MOTOR_RPM_PER_DUTY) *
     Vec<4>{1, 1, 1, 1} / 4;
 
-Vec<4> ROBOT_RADIAN_PER_SEC_PER_DUTY =
+Vec<4> ANGULAR_RADIAN_PER_SEC_PER_DUTY =
     (TERRAPIN_GEOMETRY.wheel_base * TERRAPIN_GEOMETRY.wheel_radius *
      RADIAN_PER_SECOND_PER_RPM * MOTOR_RPM_PER_DUTY) *
     Vec<4>{-1, +1, -1, +1} / 4;
@@ -54,25 +52,48 @@ struct Velocity {
 };
 
 Vec<4> duties_from_velocity(Velocity v) {
-  return v.transverse * pseudoinverse(ROBOT_METER_PER_SEC_PER_DUTY) +
-         v.radial * pseudoinverse(ROBOT_RADIAN_PER_SEC_PER_DUTY);
+  return v.transverse * pseudoinverse(TRANSVERSE_METER_PER_SEC_PER_DUTY) +
+         v.radial * pseudoinverse(ANGULAR_RADIAN_PER_SEC_PER_DUTY);
 };
 
 Velocity velocity_from_duties(Vec<4> m) {
   Velocity v;
-  v.transverse = inner(m, ROBOT_METER_PER_SEC_PER_DUTY);
-  v.radial = inner(m, ROBOT_RADIAN_PER_SEC_PER_DUTY);
+  v.transverse = inner(m, TRANSVERSE_METER_PER_SEC_PER_DUTY);
+  v.radial = inner(m, ANGULAR_RADIAN_PER_SEC_PER_DUTY);
   return v;
 };
 
-float min_meters_per_radian;
-float max_motor_speed;
+// steering limits
+float max_rotation_vel = 10;     // todo
+float max_rotational_accel = 10; // todo
+float max_linear_accel = 10;     // todo
+float max_linear_vel = 10;       // todo
+float min_turning_radius = 10;   // in meters
+// motor limits
+float max_motor_speed = 10; // todo
 
-float max_rotation_vel;
-float max_rotational_accel;
+void request_velocity_open_loop(Velocity v) {
+  auto safe_transverse =
+      std::clamp(v.transverse, -max_linear_vel, +max_linear_vel);
 
-float max_linear_accel;
-float max_linear_vel;
+  auto rotational_limit = max_rotational_vel;
+  if (min_turning_radius) {
+    rotational_limit =
+        min(abs(transverse) * min_turning_radius, max_rotational_vel);
+  }
+  auto safe_rotational =
+      clamp(rotational, -rotational_limit, +rotational_limit);
+
+  Velocity safe_velocity{safe_transverse, safe_rotational};
+
+  auto motor_targets = duties_from_velocity(v);
+  for (auto i = 0; i < size(MOTOR_CONTROLLERS); ++i) {
+    safe_motor_speed = clamp(motor_targets, -max_motor_speed, +max_motor_speed);
+    auto d = DataFrame::make_motor_control(motor_targets[i] /
+                                           numeric_limits<uint16_t>::max());
+    Motor_Controllers[i].send(d);
+  }
+}
 
 struct SpeedControllerState {
   std::array<float, N_MOTOR> d_vel_d_wheel;
