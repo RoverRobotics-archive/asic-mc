@@ -236,7 +236,24 @@ enum class PFCControlRegister : uint8_t {
 };
 
 enum class ScriptRegister {
-  // todo
+  SCRIPT_USER_VERSION = 128,
+  SCRIPT_COMMAND = 129,
+  ADC_RESULT0 = 226,
+  ADC_RESULT1 = 227,
+  ADC_RESULT2 = 228,
+  ADC_RESULT3 = 229,
+  ADC_RESULT4 = 230,
+  ADC_RESULT5 = 231,
+  ADC_RESULT6 = 232,
+  ADC_RESULT7 = 233,
+  ADC_RESULT8 = 234,
+  ADC_RESULT9 = 235,
+  ADC_RESULT10 = 236,
+  ADC_RESULT11 = 237,
+  GPIO_IN_L = 238,
+  GPIO_IN_H = 239,
+  GPIO_OUT_L = 240,
+  GPIO_OUT_H = 241,
 };
 
 struct AnyRegister {
@@ -286,7 +303,7 @@ enum class StatusCode {
   FAULT_FLAGS = 0x0000,
   MOTOR_SPEED = 0x0001,
   MOTOR_STATE = 0x0002,
-  NODE_ID = 0x0003
+  NODE_ID = 0x0003,
 };
 
 enum class ControlInputMode {
