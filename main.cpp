@@ -53,8 +53,8 @@ public:
 //     // debug("m2\t%f\n", motor_speeds[2]);
 //     // debug("m3\t%f\n", motor_speeds[3]);
 
-    debug("\n\n");
-  }
+//     debug("\n\n");
+//   }
 };
 
 void message_received_callback(iMotion::DataFrame df) {
