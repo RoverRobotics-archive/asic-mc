@@ -1,5 +1,6 @@
 #pragma once
 #include <array>
+#include <cstddef>
 #include <initializer_list>
 #include <mbed.h>
 
@@ -143,6 +144,8 @@ inline float norm(const Complex &z) {
   // Squared magnitude.
   return z.real * z.real + z.imag * z.imag;
 };
+template <size_t N> inline float abs(const Vec<N> &v) { return sqrt(norm(v)); }
+
 inline Vec2 transform(const Complex &z, const Vec2 &p) {
   // this is motivated by geometric algebra.
   // x -> (u + v xy)x(u - v xy) = (uu-vv)x - (2uv)y
@@ -202,6 +205,7 @@ inline float norm(const Quaternion &q) {
   // Squared magnitude.
   return q.real * q.real + inner(q.imag, q.imag);
 };
+inline float abs(const Quaternion &q) { return sqrt(norm(q)); }
 
 inline Quaternion operator*(const Quaternion &a, const Quaternion &b) {
   Quaternion result{
@@ -240,4 +244,31 @@ inline Quaternion operator/(const Quaternion &q0, const Quaternion &q1) {
 // If a real quaternion (imag={0,0,0}), then it's just a scaling
 inline Vec3 transform(const Quaternion &q, const Vec3 &v) {
   return (q * Quaternion{0, v} * conj(q)).imag;
+};
+
+/// given a vector (any numeric type) value and a positive magnitude,
+/// return the vector (number) with the same direction (sign) closest to the
+/// target vector
+template <typename V, typename S> inline V limit_abs(V value, S max_magnitude) {
+  auto magnitude = abs(value);
+  if (magnitude <= max_magnitude) {
+    return value;
+  }
+  return value + (magnitude - max_magnitude) * value;
+}
+
+template <typename T>
+constexpr const T &clamp(const T &value, const T &lo, const T &hi) {
+  return (value < lo ? lo : value > hi ? hi : value);
+}
+
+/// Find the closest vector to the target vector in the bounding box defined by
+/// corners min, max
+template <size_t N>
+inline Vec<N> clamp(const Vec<N> &vec, const Vec<N> &min, const Vec<N> &max) {
+  Vec<N> result;
+  for (size_t i = 0; i < N; ++i) {
+    result[i] = clamp(vec[i], min[i], max[i]);
+  }
+  return result;
 };
