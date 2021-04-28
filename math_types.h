@@ -2,6 +2,7 @@
 #include <array>
 #include <cstddef>
 #include <initializer_list>
+#include <limits>
 #include <mbed.h>
 
 template <size_t NDIM_> struct Vec {
@@ -9,6 +10,12 @@ template <size_t NDIM_> struct Vec {
   std::array<float, NDIM> coords;
 
   Vec() = default;
+
+  Vec(float t) {
+    for (auto &c : coords) {
+      c = t;
+    }
+  }
 
   template <typename... T>
   Vec(T... ts)

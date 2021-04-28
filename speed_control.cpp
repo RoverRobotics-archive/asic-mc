@@ -1,42 +1,22 @@
-#include "hardware.h"
+#include "speed_control.hpp"
 #include "EventQueue.h"
 #include "Span.h"
+#include "ThisThread.h"
 #include "hardware.h"
 #include "imc099.h"
+#include "math_types.h"
+#include "pid.hpp"
+#include "serial_api.h"
+#include <algorithm>
 #include <array>
 #include <mbed.h>
-
-enum class ControlMode {
-  OPEN_LOOP,
-  CLOSED_LOOP,
-};
-const auto N_MOTORS = 4;
-
-enum class robot_motors : size_t {
-  FRONT_LEFT = 0,
-  FRONT_RIGHT = 1,
-  REAR_LEFT = 2,
-  REAR_RIGHT = 3,
-};
-
-struct robot_geometry {
-  float intra_axle_distance; // axle distance
-  float wheel_base;          // axle length
-  float wheel_radius;
-  float center_of_mass_x_offset;
-  float center_of_mass_y_offset;
-};
-
-const robot_geometry TERRAPIN_GEOMETRY{
-    1, 1, 1, 1, 1, // todo
-};
 
 const auto M_PI = 3.1415926535;
 
 const double MOTOR_RPM_PER_DUTY = 1; // todo
 const double RADIAN_PER_SECOND_PER_RPM = 60.0 / (2 * M_PI);
 
-Vec<4> TRANSVERSE_METER_PER_SEC_PER_DUTY =
+Vec<4> LINEAR_METER_PER_SEC_PER_DUTY =
     (TERRAPIN_GEOMETRY.wheel_radius * RADIAN_PER_SECOND_PER_RPM *
      MOTOR_RPM_PER_DUTY) *
     Vec<4>{1, 1, 1, 1} / 4;
@@ -46,63 +26,98 @@ Vec<4> ANGULAR_RADIAN_PER_SEC_PER_DUTY =
      RADIAN_PER_SECOND_PER_RPM * MOTOR_RPM_PER_DUTY) *
     Vec<4>{-1, +1, -1, +1} / 4;
 
-struct Velocity {
-  double transverse;
-  double radial;
-};
-
 Vec<4> duties_from_velocity(Velocity v) {
-  return v.transverse * pseudoinverse(TRANSVERSE_METER_PER_SEC_PER_DUTY) +
-         v.radial * pseudoinverse(ANGULAR_RADIAN_PER_SEC_PER_DUTY);
+  return v.linear * pseudoinverse(LINEAR_METER_PER_SEC_PER_DUTY) +
+         v.angular * pseudoinverse(ANGULAR_RADIAN_PER_SEC_PER_DUTY);
 };
 
 Velocity velocity_from_duties(Vec<4> m) {
   Velocity v;
-  v.transverse = inner(m, TRANSVERSE_METER_PER_SEC_PER_DUTY);
-  v.radial = inner(m, ANGULAR_RADIAN_PER_SEC_PER_DUTY);
+  v.linear = inner(m, LINEAR_METER_PER_SEC_PER_DUTY);
+  v.angular = inner(m, ANGULAR_RADIAN_PER_SEC_PER_DUTY);
   return v;
 };
 
-// steering limits
-float max_rotation_vel = 10;     // todo
-float max_rotational_accel = 10; // todo
-float max_linear_accel = 10;     // todo
-float max_linear_vel = 10;       // todo
-float min_turning_radius = 10;   // in meters
-// motor limits
-float max_motor_speed = 10; // todo
+// todo: steering limits
+const double max_angular_vel = 10.0, max_linear_vel = 10.0,
+             min_turning_radius = 10.0, max_motor_speed = 10.0;
 
-void request_velocity_open_loop(Velocity v) {
-  auto safe_transverse =
-      std::clamp(v.transverse, -max_linear_vel, +max_linear_vel);
+void send_motor_targets(Vec<4> motor_targets) {
+  auto safe_motor_targets =
+      clamp(motor_targets, Vec<4>(-max_motor_speed), Vec<4>(-max_motor_speed));
 
-  auto rotational_limit = max_rotational_vel;
-  if (min_turning_radius) {
-    rotational_limit =
-        min(abs(transverse) * min_turning_radius, max_rotational_vel);
-  }
-  auto safe_rotational =
-      clamp(rotational, -rotational_limit, +rotational_limit);
-
-  Velocity safe_velocity{safe_transverse, safe_rotational};
-
-  auto motor_targets = duties_from_velocity(v);
-  for (auto i = 0; i < size(MOTOR_CONTROLLERS); ++i) {
-    safe_motor_speed = clamp(motor_targets, -max_motor_speed, +max_motor_speed);
-    auto d = DataFrame::make_motor_control(motor_targets[i] /
-                                           numeric_limits<uint16_t>::max());
-    Motor_Controllers[i].send(d);
+  for (auto i = 0; i < MOTOR_CONTROLLERS.size(); ++i) {
+    auto d = iMotion::DataFrame::make_motor_control(
+        safe_motor_targets[i] / numeric_limits<uint16_t>::max());
+    MOTOR_CONTROLLERS[i].send(d);
   }
 }
 
-struct SpeedControllerState {
-  std::array<float, N_MOTOR> d_vel_d_wheel;
-  std::array<float, N_MOTOR> d_rot_d_wheel;
-  float wheel_perp_friction;
-  float wheel_inline_friction;
-};
+class SpeedController {
+  std::array<Thread, 4> motor_communication_threads;
 
-struct SpeedDecayDelay {};
+  Vec<4> motor_measured_speed;
+  Vec<4> motor_command_duty;             // todo
+  PIDFilter<Vec<2>> velocity_filter{{}}; // use default parameters
+  ControlMode mode;
+
+  void motor_task(size_t i) {
+    while (true) {
+      auto rq = iMotion::DataFrame::make_motor_control(motor_command_duty[i]);
+      MOTOR_CONTROLLERS[i].send(rq);
+      ThisThread::sleep_for(50ms);
+    }
+  };
+
+  void on_dataframe(size_t i, iMotion::DataFrame d){
+      // todo: update measured speed
+  };
+
+  void use_open_loop() { mode = ControlMode::OPEN_LOOP; }
+  void use_closed_loop() {
+    mode = ControlMode::CLOSED_LOOP;
+    velocity_filter.reset();
+  }
+
+  void request_velocity(Velocity v, ControlMode mode) {
+    auto safe_linear = limit_abs(v.linear, max_linear_vel);
+    auto safe_angular = limit_abs(v.angular, max_angular_vel);
+
+    if (min_turning_radius) {
+      safe_angular =
+          limit_abs(safe_angular, abs(safe_linear) / min_turning_radius);
+    }
+
+    Velocity safe_velocity{safe_linear, safe_angular};
+
+    Velocity target_velocity;
+    switch (mode) {
+    case ControlMode::OPEN_LOOP: {
+      target_velocity = safe_velocity;
+    } break;
+    case ControlMode::CLOSED_LOOP: {
+      // todo: integrate imu into velocity estimate
+      Velocity measured_vel = velocity_from_duties(motor_command_duty);
+      Vec<2> target_vel_vec2{safe_velocity.linear, safe_velocity.angular};
+      auto result_vec2 = velocity_filter.tick(target_vel_vec2, measured_vel);
+      target_velocity.linear = result_vec2[0];
+      target_velocity.angular = result_vec2[1];
+    } break;
+    default:
+      __builtin_unreachable();
+    }
+
+    auto motor_targets = duties_from_velocity(target_velocity);
+    auto safe_motor_targets = clamp(motor_targets, Vec<4>(-max_motor_speed),
+                                    Vec<4>(-max_motor_speed));
+    for (auto i = 0; i < MOTOR_CONTROLLERS.size(); ++i) {
+      auto safe_motor_speed = limit_abs(motor_targets[i], max_motor_speed);
+      auto d = iMotion::DataFrame::make_motor_control(
+          safe_motor_speed / numeric_limits<uint16_t>::max());
+      MOTOR_CONTROLLERS[i].send(d);
+    }
+  }
+};
 
 // struct SpeedControllerState {
 //   std::array<int16_t, 4> target_speeds;

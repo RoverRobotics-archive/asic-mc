@@ -15,6 +15,8 @@ template <typename V = double> class PIDFilter {
     double kD = 0;
     /// limit on the maximum absolute error integral to prevent overshoot
     double max_abs_error_integral = std::numeric_limits<double>::infinity();
+    V min_target = V(-std::numeric_limits<float>::infinity());
+    V max_target = V(+std::numeric_limits<float>::infinity());
   };
 
   struct State {
@@ -74,6 +76,9 @@ public:
     V i = params.kI * error_integral;
     V d = params.kD * error_derivative;
 
-    return target + p + i + d;
+    auto new_target = target + p + i + d;
+    auto new_target_clamped =
+        clamp(new_target, params.min_target, params.max_target);
+    return new_target_clamped;
   };
 };
